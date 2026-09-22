@@ -35,6 +35,7 @@ func _run() -> void:
 	await process_frame
 	main.set_process(false)
 	main.rng.seed = 20260922
+	main.m2_laws = false                # M1 law set: no taxonomy waves / shrink / black death
 	main.spawn_cube(FREE_LANE)          # the sacrificed cube: rolls the whole field into the void
 
 	var frames := int(RUN_SEC / DT)

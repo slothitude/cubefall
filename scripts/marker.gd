@@ -16,8 +16,13 @@ const BLOB_SPAN := 0.52
 const STEP_LERP := 18.0             # yaw smoothing toward the facing dir
 const PULSE_HZ := 4.0
 
+enum MState { STANDING, FALLING }
+
+signal fell                          # dropped below Feel.VOID_Y (the void death)
+
 var cell := Vector2i(6, Feel.GRID_L - 3)
 var facing := RollMath.DIR_UP
+var mstate: int = MState.STANDING
 var can_stand_provider: Callable     # func(cell: Vector2i) -> bool
 
 var _move_t := -1.0                  # < 0 = standing still
@@ -25,6 +30,8 @@ var _from := Vector3.ZERO
 var _to := Vector3.ZERO
 var _age := 0.0
 var _target_yaw := 0.0
+var _fall_vel := Vector3.ZERO
+var _fell_fired := false            # fell emits exactly once per fall
 
 @onready var body: MeshInstance3D = $Body
 @onready var head: MeshInstance3D = $Head
@@ -40,6 +47,9 @@ func setup(provider: Callable, start_cell: Vector2i) -> void:
 	can_stand_provider = provider
 	cell = start_cell
 	facing = RollMath.DIR_UP
+	mstate = MState.STANDING
+	_fall_vel = Vector3.ZERO
+	_fell_fired = false
 	if is_inside_tree():
 		position = RollMath.cell_to_world(cell)
 
@@ -111,8 +121,11 @@ func _blob_texture() -> GradientTexture2D:
 # ----------------------------------------------------------------- movement --
 
 ## Attempt one cell step in `dir`. Turns to face the input either way;
-## returns false (and stays put) when the target is not standable.
+## returns false (and stays put) when the target is not standable or the
+## figure is already falling into the void.
 func step(dir: Vector2i) -> bool:
+	if mstate == MState.FALLING:
+		return false
 	facing = dir
 	_target_yaw = _yaw_for(dir)
 	var target := cell + dir
@@ -125,8 +138,26 @@ func step(dir: Vector2i) -> bool:
 	return true
 
 
+## THE VOID DEATH: the row under the figure fell. Gravity + tumble, `fell`
+## fires below Feel.VOID_Y.
+func fall_into_void() -> void:
+	if mstate == MState.FALLING:
+		return
+	mstate = MState.FALLING
+	_move_t = -1.0
+	_fall_vel = Vector3.ZERO
+
+
 func advance(dt: float) -> void:
 	_age += dt
+	if mstate == MState.FALLING:
+		_fall_vel.y -= Feel.FALL_GRAVITY * dt
+		position += _fall_vel * dt
+		rotate(Vector3.RIGHT, Feel.FALL_TUMBLE_SPEED * dt)
+		if position.y < Feel.VOID_Y and not _fell_fired:
+			_fell_fired = true
+			fell.emit()
+		return
 	if _move_t >= 0.0:
 		_move_t += dt
 		var k := clampf(_move_t / Feel.MARKER_STEP_TIME, 0.0, 1.0)
@@ -141,6 +172,10 @@ func advance(dt: float) -> void:
 
 func is_moving() -> bool:
 	return _move_t >= 0.0
+
+
+func is_falling() -> bool:
+	return mstate == MState.FALLING
 
 
 ## The cell "in front of" the marker — the only cell v1 reach allows marking.

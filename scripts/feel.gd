@@ -53,22 +53,53 @@ const COL_FLASH := Color(1.0, 1.0, 1.0, 1.0)             # capture flash
 const FOG_DENSITY := 0.02                                # spec fog
 
 # ============================================================================
-# M2+ RESERVED — referenced by the spec, not yet wired. No M1 code reads these
-# beyond the taxonomy ids; they pin the laws so M2 cannot retune silently.
+# M2 — CUBE LAW: the gray/black/green taxonomy, waves, field shrink, ABSOLUTE.
 # ============================================================================
 
 # ---- cube taxonomy (spec systems.cubes) ----
 const CUBE_GRAY := "gray"              # normal — capture for score; escape SHRINKS the field
 const CUBE_BLACK := "black"            # forbidden — capturing one is instant game over
 const CUBE_GREEN := "green"            # advantage — capture marks a 3x3 area
+const GREEN_AREA_SPAN := 1             # 3x3 = the green's cell +/- span
+const GREEN_AREA_CELLS := 9            # (2*span+1)^2 — the area a green capture marks
 
 # ---- score (spec systems.score) ----
 const SCORE_PER_GRAY := 100
+const SCORE_PER_GREEN := 250           # capturing the green cube itself
+const SCORE_GREEN_AREA := 150          # first capture inside a green's 3x3, per green
 const SCORE_ABSOLUTE := 1000           # perfect clear of a whole wave
+const WAVE_CLEAR_BASE := 100           # wave_clear_bonus = wave# * this
 
-# ---- waves / field (spec systems.grid + roll.waves) ----
-const FIELD_SHRINK_ROWS := 1           # rows lost per escaped gray cube
+# ---- waves (spec roll.waves + score.stage_clear) ----
+const ROWS_PER_WAVE := 3               # rows spawned per wave
+const ROW_CUBE_CHANCE := 0.34          # chance any column of a row holds a cube
+const WEIGHT_GRAY := 0.70              # type weights over a rolled cube (sum = 1)
+const WEIGHT_BLACK := 0.16
+const WEIGHT_GREEN := 0.14
+const WAVES_PER_STAGE := 5             # survive N waves = stage clear
 const WAVE_BEAT_ACCEL := 0.94          # per-stage beat multiplier
+const BLACK_WEIGHT_PER_STAGE := 0.04   # more blacks each stage (taken from gray)
+
+# ---- field shrink / regrow (spec systems.grid) ----
+const FIELD_SHRINK_ROWS := 1           # rows lost per escaped gray cube
+const FIELD_MIN_ROWS := 4              # below this the field is lost = game over
+const REGROW_ROWS := 1                 # rows restored per green-area capture
+
+# ---- ABSOLUTE (spec capture.perfect_clear) ----
+const CHAIN_POP_STAGGER := 0.07        # s between chain-reaction pops
+const ABSOLUTE_LABEL_TIME := 1.6       # s the ABSOLUTE banner holds
+
+# ---- death / drama (spec systems.death) ----
+const DEATH_FLASH_TIME := 0.55         # red screen flash before the overlay
+const DEATH_FLASH_COLOR := Color(0.55, 0.06, 0.06, 1.0)
+const TOAST_TIME := 1.4                # stage-clear toast
+
+# ---- psx palette additions (spec psx_law.palette) ----
+const COL_CUBE_BLACK := Color(0.043, 0.043, 0.055, 1.0)  # matte black, forbidden
+const COL_CUBE_GREEN := Color(0.075, 0.412, 0.196, 1.0)  # deep green, advantage
+const COL_MARK_AREA := Color(0.29, 0.94, 0.42, 1.0)      # green-area mark plates
+const COL_DANGER := Color(0.55, 0.06, 0.06, 1.0)         # death flash
+const COL_ABSOLUTE := Color(1.0, 0.92, 0.55, 1.0)        # ABSOLUTE banner gold
 
 # ---- M4 PSX pass reserved (spec psx_law) ----
 const PSX_RENDER_W := 320

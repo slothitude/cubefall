@@ -21,8 +21,10 @@ var mmi: MultiMeshInstance3D
 var _rest: Array[Transform3D] = []   # index = z * GRID_W + x
 var _falling := {}                   # row z -> { t: float, axis: Vector3, spin: float }
 var _gone := {}                      # row z -> true
-var _marks := {}                     # Vector2i -> { node: MeshInstance3D, t: float }
+var _gone_order: Array[int] = []     # rows in the order they vanished (regrow stack)
+var _marks := {}                     # Vector2i -> { node: MeshInstance3D, t: float, area: bool }
 var _mark_mesh: BoxMesh
+var _area_mark_mesh: BoxMesh
 
 
 func _ready() -> void:
@@ -71,6 +73,16 @@ func _build() -> void:
 	mmat.roughness = 0.8
 	_mark_mesh.material = mmat
 
+	_area_mark_mesh = BoxMesh.new()
+	_area_mark_mesh.size = Vector3(Feel.CELL * MARK_SPAN, 0.05, Feel.CELL * MARK_SPAN)
+	var amat := StandardMaterial3D.new()
+	amat.albedo_color = Feel.COL_MARK_AREA
+	amat.emission_enabled = true
+	amat.emission = Feel.COL_MARK_AREA
+	amat.emission_energy_multiplier = 1.6
+	amat.roughness = 0.8
+	_area_mark_mesh.material = amat
+
 
 # ------------------------------------------------------------------ bounds --
 
@@ -87,6 +99,21 @@ func in_bounds(cell: Vector2i) -> bool:
 ## True when the marker may occupy this cell: in bounds, row still solid.
 func can_stand(cell: Vector2i) -> bool:
 	return in_bounds(cell) and not _falling.has(cell.y) and not _gone.has(cell.y)
+
+
+## Rows still standing: not falling, not gone. The HUD's "field rows" and the
+## FIELD_MIN_ROWS death law both read this.
+func solid_rows() -> int:
+	return Feel.GRID_L - _falling.size() - _gone.size()
+
+
+## The highest z (nearest the camera) still standing — where an escaped gray
+## takes its bite. -1 when no row is solid.
+func near_solid_row() -> int:
+	for z in range(Feel.GRID_L - 1, -1, -1):
+		if not _falling.has(z) and not _gone.has(z):
+			return z
+	return -1
 
 
 func is_row_falling(z: int) -> bool:
@@ -121,6 +148,39 @@ func fall_row(z: int) -> void:
 	_falling[z] = {"t": 0.0, "axis": axis, "spin": 1.0 if z % 2 == 0 else -1.0}
 
 
+## The FIELD SHRINK law: the near edge row falls (an escaped gray's bite).
+## Returns the row z that fell, or -1 when nothing solid remains.
+func shrink_near_row() -> int:
+	var z := near_solid_row()
+	if z < 0:
+		return -1
+	fall_row(z)
+	return z
+
+
+## The green blessing's regrow: restore the most recently vanished row.
+## Returns true when a row came back.
+func regrow_row() -> bool:
+	if _gone_order.is_empty():
+		return false
+	var z: int = _gone_order.pop_back()
+	_gone.erase(z)
+	for x in Feel.GRID_W:
+		mm.set_instance_transform(z * Feel.GRID_W + x, _rest[z * Feel.GRID_W + x])
+	return true
+
+
+## Fresh field: every row solid, every mark cleared (the RETRY path).
+func reset() -> void:
+	_falling.clear()
+	_gone.clear()
+	_gone_order.clear()
+	for cell: Vector2i in _marks.keys():
+		clear_mark(cell)
+	for i in mm.instance_count:
+		mm.set_instance_transform(i, _rest[i])
+
+
 func advance(dt: float) -> void:
 	_advance_marks(dt)
 	_advance_falling(dt)
@@ -150,6 +210,7 @@ func _advance_falling(dt: float) -> void:
 
 func _vanish_row(z: int) -> void:
 	_gone[z] = true
+	_gone_order.append(z)
 	var dead := Transform3D(Basis.from_scale(Vector3.ONE * 0.0001), Vector3(0.0, -9999.0, 0.0))
 	for x in Feel.GRID_W:
 		mm.set_instance_transform(z * Feel.GRID_W + x, dead)
@@ -157,15 +218,31 @@ func _vanish_row(z: int) -> void:
 
 # --------------------------------------------------------------- mark plates --
 
-func set_mark(cell: Vector2i) -> bool:
-	if _marks.has(cell) or not can_stand(cell):
+## Raise a mark plate. `area` marks (the green blessing) glow green; `force`
+## lets a mark land on a falling row (the 3x3 blesses the row dying under it).
+func set_mark(cell: Vector2i, area := false, force := false) -> bool:
+	if _marks.has(cell) or (not force and not can_stand(cell)):
 		return false
 	var node := MeshInstance3D.new()
-	node.mesh = _mark_mesh
+	node.mesh = _area_mark_mesh if area else _mark_mesh
 	node.position = RollMath.cell_to_world(cell) + Vector3.UP * MARK_BURIED_Y
 	add_child(node)
-	_marks[cell] = {"node": node, "t": 0.0}
+	_marks[cell] = {"node": node, "t": 0.0, "area": area}
 	return true
+
+
+## True when this cell's mark belongs to a green 3x3 area.
+func is_area_mark(cell: Vector2i) -> bool:
+	return _marks.has(cell) and bool(_marks[cell].area)
+
+
+## Count of area marks currently up.
+func area_mark_count() -> int:
+	var n := 0
+	for cell: Vector2i in _marks:
+		if bool(_marks[cell].area):
+			n += 1
+	return n
 
 
 func clear_mark(cell: Vector2i) -> void:

@@ -1,13 +1,12 @@
 class_name Cube
 extends Node3D
-## A GRAY cube — one BoxMesh (Feel.CUBE_SIZE^3, the slight gap shows the
-## grid), steel-gray StandardMaterial3D, roughness 1.0 / metallic 0.1.
-## Spawns on a far row and rolls toward the camera row after row using
-## RollMath — real 90-degree rotation around the leading bottom edge, never
-## a slide. Passing the near edge it tips into the void: tumble + gravity,
-## despawned below Feel.VOID_Y.
-##
-## M2 reserves `law` for the gray/black/green taxonomy; M1 spawns gray only.
+## A cube of the taxonomy — GRAY (steel, normal), BLACK (matte, forbidden),
+## GREEN (deep green, advantage) — one BoxMesh (Feel.CUBE_SIZE^3, the slight
+## gap shows the grid). Spawns on a far row and rolls toward the camera row
+## after row using RollMath — real 90-degree rotation around the leading
+## bottom edge, never a slide. Passing the near edge it tips into the void:
+## tumble + gravity, despawned below Feel.VOID_Y. Blacks roll off the same
+## way (the forbidden law: they are ALLOWED to escape; capturing one is death).
 
 enum State { ROLLING, FALLING, CAPTURING, DEAD }
 
@@ -32,12 +31,48 @@ func _ready() -> void:
 	var box := BoxMesh.new()
 	box.size = Vector3.ONE * Feel.CUBE_SIZE
 	_mat = StandardMaterial3D.new()
-	_mat.albedo_color = Feel.COL_CUBE_GRAY
-	_mat.roughness = 1.0
-	_mat.metallic = 0.1
 	box.material = _mat
 	mesh.mesh = box
 	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_apply_law(law)
+
+
+## Set the cube's taxonomy law and restyle its material to match.
+## Legal before or after the node enters the tree.
+func setup(new_law: String) -> void:
+	law = new_law
+	if _mat != null:
+		_apply_law(law)
+
+
+## The material look per spec palette: gray steel, matte black, deep green.
+func _apply_law(which: String) -> void:
+	match which:
+		Feel.CUBE_BLACK:
+			_mat.albedo_color = Feel.COL_CUBE_BLACK
+			_mat.metallic = 0.0
+			_mat.emission_enabled = false
+		Feel.CUBE_GREEN:
+			_mat.albedo_color = Feel.COL_CUBE_GREEN
+			_mat.metallic = 0.1
+			_mat.emission_enabled = true
+			_mat.emission = Feel.COL_CUBE_GREEN
+			_mat.emission_energy_multiplier = 0.35
+		_:
+			_mat.albedo_color = Feel.COL_CUBE_GRAY
+			_mat.metallic = 0.1
+			_mat.emission_enabled = false
+	_mat.roughness = 1.0
+
+
+## The law's palette color (the flash overwrite hides it mid-capture).
+func law_color() -> Color:
+	match law:
+		Feel.CUBE_BLACK:
+			return Feel.COL_CUBE_BLACK
+		Feel.CUBE_GREEN:
+			return Feel.COL_CUBE_GREEN
+	return Feel.COL_CUBE_GRAY
 
 
 ## Place resting in a cell (bottom face on the floor, y = 0).
