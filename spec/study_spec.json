@@ -1,0 +1,90 @@
+{
+	"project": "CUBEFALL",
+	"tagline": "a Kurushi / Intelligent Qube systems study — the grid, the void, the rolling cubes",
+	"study": "Original recreation of the SYSTEMS of Kurushi Final / Intelligent Qube (Sony, 1997). All art/audio original; original title; no Sony assets, names, or the walking-character design. Original working title: CUBEFALL.",
+	"engine": "Godot 4.7 GDScript, 3D, PORTRAIT 540x960 phone-first (the grid's long axis runs INTO the screen — waves roll toward the camera from the fog horizon), stretch canvas_items/expand, gl_compatibility, web-first (itch HTML5 plays on phones), Android APK via the arcade pattern later",
+	"psx_law": {
+		"low_res": "render at 320x240 into a viewport, upscale nearest-neighbor",
+		"vertex_wobble": "vertex snapping shader (snap to a virtual 160px grid) — the PSX swimming look",
+		"affine_hint": "texture gradient dithering; no filtering (nearest), no AA, no shadows (blob decal under the walker)",
+		"palette": "dark void, steel gray cubes, deep green advantage cubes, matte black forbidden cubes, fog"
+	},
+	"systems": {
+		"grid": {
+			"width_cells": 13,
+			"length_cells": 17,
+			"cell_size": 1.0,
+			"floor_fall": "captured/exited rows drop into the void with tumble"
+		},
+		"player": {
+			"kind": "the Marker — an abstract glowing figure",
+			"move": "cell-to-cell with input repeat, grid-aligned, mark squares with a rise animation (the classic mark plate)",
+			"capture": "marked squares flash then capture the row when cubes roll over them"
+		},
+		"cubes": [
+			{
+				"id": "gray",
+				"law": "normal — capture for score; letting one roll off the far edge into the void SHRINKS the field"
+			},
+			{
+				"id": "black",
+				"law": "forbidden — capturing a black cube = instant game over; blacks must be allowed to roll off safely; they never count toward waves"
+			},
+			{
+				"id": "green",
+				"law": "advantage — capturing one marks a 3x3 area, capturing that area earns bonus + a roll of extra field"
+			}
+		],
+		"roll": {
+			"law": "cubes roll 90° per cell — real 3D rotation around the leading bottom edge, NOT sliding (the feel IS the roll)",
+			"speed_cells_per_sec": 2.2,
+			"waves": "rows spawn on a beat, accelerating per stage"
+		},
+		"capture": {
+			"perfect_clear": "capture EVERY cube in a wave = ABSOLUTE — the whole stage's cubes in that wave captured, big bonus"
+		},
+		"score": {
+			"per_gray": 100,
+			"per_wave_bonus": true,
+			"absolute": 1000,
+			"stage_clear": "survive N waves with field intact"
+		},
+		"death": [
+			"capture a black cube",
+			"fall into the void (standing on a fallen row)",
+			"field shrinks to nothing"
+		]
+	},
+	"art": [
+		"tex_cube_gray",
+		"tex_cube_black",
+		"tex_cube_green",
+		"tex_floor_plate",
+		"tex_void_fog",
+		"walker_model",
+		"title_logo"
+	],
+	"milestones": [
+		"1 GRID CORE: 3D grid + rolling cube math (90° edge roll) + the Marker + mark/capture one row + battery (roll math, capture windows)",
+		"2 CUBE LAW: gray/black/green taxonomy + forbidden law + waves + field shrink + perfect-clear",
+		"3 RUN: stages, score, HUD, speed ramp, game-over/win, camera drama (the void pull)",
+		"4 PSX PASS: low-res + vertex wobble + dither + fog + audio (roll thuds, mark blip, capture crash, absolute fanfare) + export"
+	],
+	"phone_law": {
+		"controls": {
+			"move": "swipe/drag short = step cell-by-cell (grid-aligned, input-repeat on hold); WASD/arrows on desktop",
+			"mark": "tap the cell in front of the marker (or tap ANY cell within the 3x3 reach law) raises the mark plate",
+			"trigger": "capture fires when cubes roll over marks — but the phone gets a big CAPTURE button too (the classic trigger), thumb-reachable bottom-right",
+			"reach": "v1 keeps classic reach: mark the cell ahead only (swipe+tap = the whole grammar)"
+		},
+		"camera": "elevated behind-the-marker follow, tilted so the wave horizon sits in the top third; slight dolly-out as field shrinks",
+		"thumb_rule": "all buttons bottom-arc; nothing critical above the midpoint; one-hand playable",
+		"performance": "<=60 draw calls typical (grid = one merged mesh per row state, cubes instanced), 320x240 internal render keeps phones at 60fps in gl_compatibility"
+	},
+	"art_source_law": {
+		"textures": "Flux (NVIDIA endpoint) + PIL — flat retro textures, same lane as all games",
+		"models": "CODE-BUILT low-poly only (walker <= 300 tris, cubes are BoxMesh) — the PSX law FORBIDS generated heavy meshes (TRELLIS output is ~100x over budget)",
+		"sculmm_lanes": "Colab CLI serves THREE fronts for the GMP (PLAN.md P5): (1) MESHES — TRELLIS/Hunyuan shape chains, content-addressed work-orders; (2) ANIMATION — BVH mocap applied to generated meshes via the rigid nearest-segment bind law + clips.json registry (the animated pilot pipeline); (3) CINEMATICS — Blender cel/clay render passes with the spring-arm camera law. CUBEFALL v1 stays code-animated (marker tweens; a 300-tri figure needs no mocap) — the animation lane is for organic characters (RPG cutscenes, STAR VISITOR idle/ride cycles) and title cinematics.",
+		"audio": "procedural synthesis in code (the arcade SfxManager pattern)"
+	}
+}
